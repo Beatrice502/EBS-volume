@@ -1,0 +1,156 @@
+
+BeatruceNjualem
+, [may 26, 2022 at 10:43:49 AM]:
+...How to migrate EBS Volume from one AZ to Another 
+------------------------------------------------ 
+# Case study will be Jenkins Servers 
+# Case study will use the t2-micro instance type 
+# You can only migrate EBS Volumes from Availability Zone (AZ) to another  
+  within the same Region 
+# Task: Migrate Jenkins from us-east-2a AZ to us-east-2c 
+# Region = Ohio 
+# Assuming:- 
+  - Jenkins in us-east-2a is the companys existing Jenkins
+  - Jenkins in us-east-2c is the new Jenkins the company wants you to migrate 
+    their existing Jenkins Server to it. 
+  - Jenkins in us-east-2a will be called Jenkins Server 01 
+  - Jenkins in us-east-2c will be called Jenkins Server 02  
+# cd /var/lib/jenkins = Home directory of jenkins 
+# lsblk = List EBS available on the server 
+# make sure you are not doing this as root user 
+
+
+Migration Proper: 
+================  
+
+Attach EBS Volume to Server 01
+------------------------------
+
+1) Jenkins Server 01:
+   ------------------ 
+# On Jenkins UAI 
+  Install Jenkins and all its plugins  
+
+# Stop Jenkins on the server 
+  sudo systemctl stop jenkins 
+  sudo systemctl status jenkins
+
+# Add a volume to the Jenkins Server 01 
+# On AWS (Create EBS Volume) 
+  - Make sure the Jenkins Server Instance is on <stop> state  
+  - Select Jenkins Server 01 
+  - Elastic Block Store --> Select Volumes --> Create Volume --> Add Tag --> Create Volume 
+  # Once Volume is created and <Available>  
+  - Select Volume --> Action --> Attach Volume 
+  - Make sure its on your AZ --> Select Instance --> Attach 
+  - Start your Instance 
+
+# On your Jenkins Server 01 (CLI) 
+  - run <lsblk> = to see how many EBS are available  
+  - run <sudo mkfs.ext4 /dev/xvdf> = to format the newly created EBS  
+  - Only by formating it can it be ready to receive data   
+  - Formatting (or cooking) is creating a file system on the device (EBS) 
+      - sudo mkfs = command 
+      - .ext4 = the type of file system  
+      - /dev/xvdf = EBS mount point (device)  
+  - run <sudo file -s /dev/xvdf> = to check if the file system has been created 
+
+  - lsblk = to see the mount point before mounting new EBS  
+
+# Mount the volume to the home of Jenkins 
+  - sudo mount /dev/xvdf /var/lib/jenkins  
+
+  - lsblk = to see the mount point after mounting new EBS  
+
+# Make mount point permanent 
+  # Make a copy (backup) of the /etc/fstab before you proceed  
+    - sudo cp /etc/fstab /etc/fstab.orig    
+  - sudo blkid = to get the ID of the EBS volume  
+  - sudo cat /etc/fstab  
+  - vi /etc/fstab    
+  - Paste < UUID=(ID) /var/lib/jenkins xfs defaults,nofail 0 2 >
+  - Paste the ID of the volume on (ID) 
+  - lsblk = to confirm 
+
+# Restart Jenkins  
+  - sudo systemctl start jenkins 
+
+# Open Jenkins on browser 
+  - First opening will give an error  
+# Fix Problem 
+  - cd var/lib/jenkins 
+  - ls = to check owner (permission) 
+  - run <sudo chown jenkins:jenkins -R /var/lib/jenkins = to change ownership  
+  - run <sudo service jenkins restart> = to Restart jenkins 
+
+
+2) Jenkins Server 02:
+   ------------------ 
+- Once the EBS volume has been created, you can create an image or a snapshot  
+- You can now use the snapshot to create another volume which will be like a  
+  mirror to the original volume used to create the snapshot  
+- Snapshot can be created in different availability zone unlike EBS 
+
+# Install Jenkins on Jenkins Server 02 
+
+# On AWS 
+# Create Snapshot
+  - Check Jenkins Server 01 and open <Storage> 
+  - Select EBS volume --> Action --> Create Snapshot  
+    Check <description> and <tag> 
+  - Create Snapshot 
+
+# Create Volume from Snapshot 
+  - Stop Jenkins Server CLI 
+    sudo systemctl stop jenkins 
+  - Stop Jenkins Server 02 Instance  
+  - Elastic Block Store --> Snapshot --> Action --> Create Volume  
+       - Leave Volume Type by <default> 
+       - You can increase size but remember once increased cannot be decreased  
+       - Make sure you get the correct availability zone  
+       - You can chose to either encrypt or not 
+       - Add Tag 
+       - Create Volume
+
+Vin Lonje, [31.10.21 14:11]
+# Attach Volume to Instance 
+ - Select Volume --> Action --> Attach Volume --> 
+   Chose Instance --> Attach Volume 
+
+# Start Jenkins Server 02 
+ - Start Instance 
+ - Make sure Jenkins Server 02 CLI is still in stop state 
+    sudo systemctl start jenkins 
+
+# Mount the volume to the home of Jenkins 
+  - sudo mount /dev/xvdf /var/lib/jenkins  
+
+  - lsblk = to see the mount point after mounting new EBS  
+
+# Make mount point permanent 
+  # Make a copy (backup) of the /etc/fstab before you proceed  
+    - cp /etc/fstab /etc/fstab.orig    
+  - sudo blkid = to get the ID of the EBS volume  
+  - sudo cat /etc/fstab  
+  - vi /etc/fstab    
+  - Paste < UUID=(ID) /var/lib/jenkins xfs defaults,nofail 0 2 
+  - Paste the ID of the volume on (ID) 
+  - lsblk = to confirm 
+
+# Restart Jenkins  
+  - sudo systemctl start jenkins 
+
+# Open Jenkins on browser 
+  - First opening will give an error  
+# Fix Problem 
+  - cd var/lib/jenkins 
+  - ls = to check owner (permission) 
+  - run <sudo chown jenkins:jenkins -R /var/lib/jenkins = to change ownership  
+  - run <sudo service jenkins restart> = to Restart jenkins
+
+Beatrice N, [Oct 31, 2021 at 10:47:15 AM]:
+Join our Cloud HD Video Meeting
+...
+
+Beatrice N, [Oct 31, 2021 at 10:47:15 AM]:
+Beatrice Njualem is inviting you to a scheduled Zo...
